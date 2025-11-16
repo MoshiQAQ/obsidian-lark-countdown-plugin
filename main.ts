@@ -96,7 +96,6 @@ interface Translations {
   toolbarColour: string;
   colorPopoverTitle: string;
   defaultLabel: string;
-  settingsHeader: string;
   settingsDefaultLabel: string;
   settingsDefaultDuration: string;
   settingsDefaultColour: string;
@@ -128,7 +127,6 @@ const enStrings: Translations = {
   toolbarColour: "Change colour",
   colorPopoverTitle: "Colour",
   defaultLabel: "Countdown",
-  settingsHeader: "Countdown Timer",
   settingsDefaultLabel: "Default label",
   settingsDefaultDuration: "Default duration (minutes)",
   settingsDefaultColour: "Default colour",
@@ -160,7 +158,6 @@ const zhStrings: Translations = {
   toolbarColour: "更改颜色",
   colorPopoverTitle: "颜色",
   defaultLabel: "倒计时",
-  settingsHeader: "Countdown Timer",
   settingsDefaultLabel: "默认标签",
   settingsDefaultDuration: "默认时长（分钟）",
   settingsDefaultColour: "默认颜色",
@@ -279,15 +276,15 @@ export default class CountdownTimerPlugin extends Plugin {
       return;
     }
 
-    const content = await this.app.vault.read(file);
-    const lines = content.split("\n");
     const { lineStart, lineEnd } = context.section;
-
     const iso = data.target.toISOString();
     const blockLines = serializeCountdownLines({ target: iso, label: data.label, color: data.color });
 
-    lines.splice(lineStart, lineEnd - lineStart + 1, ...blockLines);
-    await this.app.vault.modify(file, lines.join("\n"));
+    await this.app.vault.process(file, (content) => {
+      const lines = content.split("\n");
+      lines.splice(lineStart, lineEnd - lineStart + 1, ...blockLines);
+      return lines.join("\n");
+    });
   }
 
   async loadSettings() {
@@ -424,7 +421,9 @@ class CountdownView extends MarkdownRenderChild {
 
   onload() {
     this.tick();
-    this.intervalId = window.setInterval(() => this.tick(), 1000);
+    const intervalId = window.setInterval(() => this.tick(), 1000);
+    this.intervalId = intervalId;
+    this.registerInterval(intervalId);
   }
 
   onunload() {
@@ -672,7 +671,6 @@ class CountdownSettingTab extends PluginSettingTab {
     const strings = this.plugin.getStrings();
 
     containerEl.empty();
-    new Setting(containerEl).setName(strings.settingsHeader).setHeading();
 
     new Setting(containerEl)
       .setName(strings.settingsDefaultLabel)
@@ -782,47 +780,18 @@ function pad(value: number) {
 }
 
 function getTranslations(app: App): Translations {
-  const storageLanguage =
-    typeof window !== "undefined"
-      ? getOptionalString(window.localStorage?.getItem("language") ?? window.localStorage?.getItem("lang"))
-      : undefined;
-
-  const navigatorLanguage = typeof navigator !== "undefined" ? getOptionalString(navigator.language) : undefined;
-
-  const localeCandidate =
-    getObjectString(app, "locale") ??
-    getObjectString(app, "lang") ??
-    getVaultLocale(app.vault) ??
-    storageLanguage ??
-    navigatorLanguage ??
-    "en";
-
-  const locale = localeCandidate.toLowerCase();
+  const locale = getAppLanguage(app).toLowerCase();
   if (locale.startsWith("zh")) {
     return zhStrings;
   }
   return enStrings;
 }
 
-function getVaultLocale(vault: App["vault"]): string | undefined {
-  const maybeGetConfig = (vault as { getConfig?: (key: string) => unknown }).getConfig;
-  if (typeof maybeGetConfig === "function") {
-    return getOptionalString(maybeGetConfig.call(vault, "locale"));
+function getAppLanguage(app: App): string {
+  const getLanguage = (app as App & { getLanguage?: () => string }).getLanguage;
+  const locale = getLanguage?.call(app);
+  if (typeof locale === "string" && locale.length) {
+    return locale;
   }
-  return undefined;
-}
-
-function getObjectString(source: unknown, key: string): string | undefined {
-  if (!source || typeof source !== "object") {
-    return undefined;
-  }
-  if (!(key in source)) {
-    return undefined;
-  }
-  const value = (source as Record<string, unknown>)[key];
-  return getOptionalString(value);
-}
-
-function getOptionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return "en";
 }
