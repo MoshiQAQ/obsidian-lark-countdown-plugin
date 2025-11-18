@@ -11,6 +11,7 @@ import {
   SectionCache,
   Setting,
   TFile,
+  getLanguage,
   setIcon
 } from "obsidian";
 
@@ -788,8 +789,7 @@ function getTranslations(app: App): Translations {
 }
 
 function getAppLanguage(app: App): string {
-  const getLanguage = (app as App & { getLanguage?: () => string }).getLanguage;
-  const locale = getLanguage?.call(app);
+  const locale = getLanguage?.();
   if (typeof locale === "string" && locale.length) {
     return locale;
   }
