@@ -12,7 +12,7 @@ Bring Feishu/Lark-style countdown blocks to Obsidian. The plugin renders a vivid
 - **Global defaults** – set fallback label, duration (minutes), and colour in the plugin settings.
 
 ## Requirements
-- Obsidian v1.4.0 or newer (desktop or mobile)
+- Obsidian v1.8.0 or newer (desktop or mobile)
 - No additional services or API keys
 
 ## Installation
